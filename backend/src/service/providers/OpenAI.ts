@@ -42,6 +42,43 @@ export async function OpenAIAPIcall(context: ChatMessage[], message: ChatMessage
             error.message
         )
     }
-
-
 }
+
+export async function OpenAIAPIcallNormal(context: ChatMessage[], message: ChatMessage) {
+
+    let messages = [
+        {
+            role: "system",
+            content: SYSTEM_PROMPT
+        },
+        ...context,
+        {
+            role: "user",
+            content: message.content
+        }
+    ]
+
+    // console.log(CountTokens(messages));
+
+    try {
+        const res = await openRouter.chat.send({
+            chatRequest: {
+                model: process.env.OPENAI_MODEL,
+                messages: messages as ChatUserMessage[]
+            }
+        });
+
+        // parse response based on LLM API providers response type to our app's standard type
+
+        return res;
+    }
+    catch (error: any) {
+
+        throw new AppError(
+            error.statusCode,
+            "OPENAI_API_ERROR",
+            error.message
+        )
+    }
+}
+

@@ -2,6 +2,7 @@ import { models } from "../config/ModelRegistery.js";
 import { getConversation, updateChatSummary } from "./ConversationService.js";
 import { callLLM } from "./LLMService.js";
 import { countMessagesAfterSequence, getUnSummarizedMessages } from "./MessageService.js";
+import { OpenAIAPIcallNormal } from "./providers/OpenAI.js";
 
 async function NeedSummarization(conversationId: string) {
 
@@ -23,8 +24,7 @@ async function SummarizeChat(conversationId: string) {
     const lastMessages = await getUnSummarizedMessages(conversationId);
 
     const result =
-        await callLLM(
-            process.env.OPENAI_MODEL as string,
+        await OpenAIAPIcallNormal(
             [],
             {
                 role: "user",
@@ -55,7 +55,7 @@ Remove:
             }
         );
 
-    await updateChatSummary(conversationId, result.choices[0].message.content, lastMessages[lastMessages.length - 1]?.sequenceNumber as number);
+    await updateChatSummary(conversationId, result.choices[0]?.message.content, lastMessages[lastMessages.length - 1]?.sequenceNumber as number);
 }   
 
 export { NeedSummarization, SummarizeChat };
