@@ -21,4 +21,20 @@ async function createMessage(data : { conversationId : string, message : ChatMes
 
 }
 
-export { createMessage };
+async function getLastNMessages(conversationId : string, n : number) {
+
+    const messages = await prisma.messages.findMany({
+        where: {
+            conversationId: conversationId
+        },
+        orderBy: {
+            createdAt: "desc"
+        },
+        take: n
+    });
+
+    return messages;
+
+}
+
+export { createMessage, getLastNMessages };

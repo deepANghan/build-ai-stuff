@@ -1,7 +1,8 @@
-import type { Request, Response } from "express";
+import type { NextFunction, Request, Response } from "express";
 import { createConversation, getConversation, getConversations } from "../service/ConversationService.js";
 import { createMessage } from "../service/MessageService.js";
 import { callLLM } from "../service/LLMService.js";
+import { buildContext } from "../service/ContextBuilder.js";
 
 
 async function PostChatController(request: Request, response : Response) {
@@ -19,7 +20,7 @@ async function PostChatController(request: Request, response : Response) {
 
 }
 
-async function PostMessageController(request: Request, response : Response) {
+async function PostMessageController(request: Request, response : Response, next : NextFunction) {
     
     const { conversationId } = request.params;
     const { model, message } = request.body;
@@ -45,7 +46,9 @@ async function PostMessageController(request: Request, response : Response) {
                 tokenCount: 0
             });
 
-            const llmResponse = await callLLM(model, {
+            const context = await buildContext(conversationId as string);
+            
+            const llmResponse = await callLLM(model, context, {
                 role: "user",
                 content: message
             });
@@ -61,7 +64,7 @@ async function PostMessageController(request: Request, response : Response) {
             const aiMessage = await createMessage({
                 conversationId: conversationId as string,
                 message: {
-                    role: "ai",
+                    role: "assistant",
                     content: llmResponse.choices[0]?.message.content
                 },
                 model: llmResponse.model,
@@ -78,13 +81,9 @@ async function PostMessageController(request: Request, response : Response) {
                 }
             });
     }
-    catch(error) {
-        console.log(error);
-
-        return response.status(500).json({
-            success: false,
-            error: "Something went wrong"
-        });
+    catch(error : any) {
+        console.log(error.message);
+        next(error);
     }
   
 }   

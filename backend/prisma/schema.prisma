@@ -24,6 +24,7 @@ model Messages {
   Conversation      Conversations  @relation(fields: [conversationId], references: [conversationId])
   role              String
   content           String
-  tokenCount        Int
-  model             String
+  tokenCount        Int?
+  model             String?
+  createdAt         DateTime  @default(now())
 }
