@@ -8,19 +8,19 @@ async function callLLM(model : string, context : ChatMessage[], message : ChatMe
 
     try {
 
-        let res : any;
+        let streamResponse : any;
 
         const registeryModel = getModel(model);
 
         if(model == process.env.OPENAI_MODEL) {
-            res = await OpenAIAPIcall(context, message);
+            streamResponse = await OpenAIAPIcall(context, message);
         }
 
         if(model == process.env.NVIDIA_MODEL) {
-            res = await NvidiaAPIcall(context, message);
+            streamResponse = await NvidiaAPIcall(context, message);
         }
 
-        return res;
+        return streamResponse;
 
     } catch (error) {
         throw error;

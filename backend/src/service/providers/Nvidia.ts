@@ -22,16 +22,18 @@ export async function NvidiaAPIcall(context: ChatMessage[], message: ChatMessage
     console.log(CountTokens(messages));
 
     try {
-        const res = await openRouter.chat.send({
+
+        const resStream = await openRouter.chat.send({
             chatRequest: {
                 model: process.env.NVIDIA_MODEL,
-                messages: messages as ChatUserMessage[]
+                messages: messages as ChatUserMessage[],
+                stream: true
             }
         });
 
         // parse response based on LLM API providers response type to our app's standard type
 
-        return res;
+        return resStream;
     }
     catch (error: any) {
 

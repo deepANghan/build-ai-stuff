@@ -4,7 +4,9 @@ import { createMessage } from "../service/MessageService.js";
 import { callLLM } from "../service/LLMService.js";
 import { buildContext } from "../service/ContextBuilder.js";
 import { NeedSummarization, SummarizeChat } from "../service/Summarizer.js";
+import { getEncoding } from "js-tiktoken";
 
+const enc = getEncoding("cl100k_base");
 
 async function PostChatController(request: Request, response : Response) {
 
@@ -35,8 +37,26 @@ async function PostMessageController(request: Request, response : Response, next
     
     }
 
+        let headersSent = false;
+
     try
     {
+        response.writeHead(200, {
+            'Content-Type': 'text/event-stream',
+            'Cache-Control': 'no-cache',
+            'Connection': 'keep-alive',
+        });
+
+        headersSent = true;
+
+        let isClientConnected = true;
+        let aiCombinedResponse = "";
+        let outputTokenCount = 0;
+
+            request.on('close', () => {
+                isClientConnected = false;
+            });
+
         const userMessage = await createMessage({
                 conversationId: conversationId as string,
                 message: {
@@ -47,16 +67,41 @@ async function PostMessageController(request: Request, response : Response, next
                 tokenCount: 0
             });
 
-            if(await NeedSummarization(conversationId as string)) {
-                await SummarizeChat(conversationId as string);
-            }
+            // if(await NeedSummarization(conversationId as string)) {
+            //     await SummarizeChat(conversationId as string);
+            // }
 
             const context = await buildContext(conversationId as string);
             
-            const llmResponse = await callLLM(model, context, {
+            const llmStream = await callLLM(model, context, {
                 role: "user",
                 content: message
             });
+
+            // console.log(llmStream);
+
+            for await (let chunk of llmStream) {
+
+                // console.log(chunk);
+
+                // console.log("this is object", chunk.choices[0].delta);
+
+                // if(!isClientConnected) break;
+
+                const token = chunk.choices[0].delta.content || "";
+
+
+                if(token) {
+                    aiCombinedResponse += token;
+
+                    outputTokenCount++;
+
+                    response.write(`data: ${JSON.stringify({text : token})}\n\n`);
+                }
+                
+            }
+
+            // console.log("stream finished");
 
             // {
             //     choices:[ messages ],
@@ -70,24 +115,40 @@ async function PostMessageController(request: Request, response : Response, next
                 conversationId: conversationId as string,
                 message: {
                     role: "assistant",
-                    content: llmResponse.choices[0]?.message.content
+                    content: aiCombinedResponse
                 },
-                model: llmResponse.model,
-                tokenCount: llmResponse.usage?.completionTokens as number
+                model: model,
+                tokenCount: outputTokenCount
             });
 
-            return response.status(200).json({
-                success: true,
-                data: {
-                    aiMessage: {
-                        role: aiMessage.role,
-                        content: aiMessage.content
-                    }   
-                }
-            });
-    }
+            console.log("stored response in db", aiMessage);
+
+            if(isClientConnected) {
+                response.write('event: done\ndata: [DONE]\n\n');
+                response.end();
+            }
+            // return response.status(200).json({
+            //     success: true,
+            //     data: {
+            //         aiMessage: {
+            //             role: aiMessage.role,
+            //             content: aiMessage.content
+            //         }   
+            //     }
+            // });
+
+            return; 
+    
+        }
     catch(error : any) {
         console.log(error.message);
+
+        if(headersSent) {
+            response.write(`data: ${JSON.stringify({ error: "Stream disconnected unexpectedly." })}\n\n`);
+            response.end();
+            return ;
+        }
+
         next(error);
     }
   

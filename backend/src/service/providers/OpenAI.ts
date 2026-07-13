@@ -25,7 +25,8 @@ export async function OpenAIAPIcall(context: ChatMessage[], message: ChatMessage
         const res = await openRouter.chat.send({
             chatRequest: {
                 model: process.env.OPENAI_MODEL,
-                messages: messages as ChatUserMessage[]
+                messages: messages as ChatUserMessage[],
+                stream: true
             }
         });
 
