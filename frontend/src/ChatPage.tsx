@@ -118,73 +118,150 @@ export default function ChatPage() {
 
 
   async function sendMessage() {
-
     if (!message.trim()) return;
-
 
     if (!conversationId) {
       await createConversation();
       return;
     }
 
-
     const userMessage = {
       role: "user",
       content: message,
     };
 
-
+    // 1. Immediately show user message and set placeholder assistant bubble
     setMessages((prev) => [
       ...prev,
       userMessage,
+      { role: "assistant", content: "" } // Placeholder for typing stream
     ]);
 
-
     const currentMessage = message;
-
     setMessage("");
-
     setLoading(true);
 
-
     try {
-
       const res = await fetch(`${API}/${conversationId}`, {
         method: "POST",
-
         headers: {
           "Content-Type": "application/json",
         },
-
         body: JSON.stringify({
           message: currentMessage,
           model: selectedModel,
         }),
       });
 
+      // 2. Validate response stream presence
+      if (!res.body) {
+        throw new Error("ReadableStream not supported on response body.");
+      }
 
-      const json = await res.json();
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+
+      let buffer = "";
+      let fullAiContent = "";
+
+      while (true) {
+
+        const { value, done } = await reader.read();
+
+        if (done) break;
+
+        buffer += decoder.decode(value, {
+          stream: true
+        });
 
 
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: json.data.aiMessage.role,
-          content: json.data.aiMessage.content,
-        },
-      ]);
+        const events = buffer.split("\n\n");
 
+        buffer = events.pop() || "";
+
+
+        for (const event of events) {
+
+          if (event.includes("[DONE]")) {
+            break;
+          }
+
+
+          const line = event
+            .split("\n")
+            .find(l => l.startsWith("data:"));
+
+
+          if (!line) continue;
+
+
+          const payload = line.replace(
+            "data:",
+            ""
+          ).trim();
+
+
+          try {
+
+            const data = JSON.parse(payload);
+
+
+            if (data.text) {
+
+              fullAiContent += data.text;
+
+
+              setMessages(prev => {
+
+                const updated = [...prev];
+
+                const last = updated.length - 1;
+
+
+                if (updated[last]?.role === "assistant") {
+
+                  updated[last] = {
+                    ...updated[last],
+                    content: fullAiContent
+                  };
+
+                }
+
+                return updated;
+              });
+            }
+
+
+          } catch (err) {
+
+            console.log(
+              "Invalid SSE chunk",
+              payload
+            );
+
+          }
+          finally {
+            setLoading(false);
+          }
+        }
+      }
 
     } catch (err) {
-
       console.log(err);
-
+      // Clean up error state by letting user know stream failed
+      setMessages((prev) => {
+        const updated = [...prev];
+        const lastIndex = updated.length - 1;
+        if (updated[lastIndex]?.content === "") {
+          updated[lastIndex] = { role: "assistant", content: "⚠️ Error generating stream response." };
+        }
+        return updated;
+      });
     } finally {
-
       setLoading(false);
-
     }
   }
+
 
 
   return (
@@ -221,11 +298,10 @@ export default function ChatPage() {
                 )
               }
 
-              className={`w-full border-b p-4 text-left hover:bg-gray-100 ${
-                conversationId === conversation.conversationId
-                  ? "bg-blue-50"
-                  : ""
-              }`}
+              className={`w-full border-b p-4 text-left hover:bg-gray-100 ${conversationId === conversation.conversationId
+                ? "bg-blue-50"
+                : ""
+                }`}
             >
 
               <p className="font-medium">
@@ -326,21 +402,19 @@ export default function ChatPage() {
 
                 key={index}
 
-                className={`flex ${
-                  msg.role === "user"
-                    ? "justify-end"
-                    : "justify-start"
-                }`}
+                className={`flex ${msg.role === "user"
+                  ? "justify-end"
+                  : "justify-start"
+                  }`}
 
               >
 
                 <div
 
-                  className={`max-w-2xl rounded-xl px-4 py-3 ${
-                    msg.role === "user"
-                      ? "bg-blue-600 text-white"
-                      : "bg-white shadow"
-                  }`}
+                  className={`max-w-2xl rounded-xl px-4 py-3 ${msg.role === "user"
+                    ? "bg-blue-600 text-white"
+                    : "bg-white shadow"
+                    }`}
 
                 >
 
@@ -354,20 +428,17 @@ export default function ChatPage() {
             ))}
 
 
+            {loading &&
+              messages[messages.length - 1]?.role === "assistant" &&
+              messages[messages.length - 1]?.content === "" && (
 
-            {loading && (
-
-              <div className="flex justify-start">
-
-                <div className="rounded-xl bg-white px-4 py-3 shadow">
-
-                  AI is typing...
-
+                <div className="flex justify-start">
+                  <div className="rounded-xl bg-white px-4 py-3 shadow">
+                    AI is typing...
+                  </div>
                 </div>
 
-              </div>
-
-            )}
+              )}
 
 
 
