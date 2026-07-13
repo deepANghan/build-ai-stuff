@@ -37,4 +37,38 @@ async function getLastNMessages(conversationId : string, n : number) {
 
 }
 
-export { createMessage, getLastNMessages };
+async function countMessagesAfterSequence(conversationId : string, summarized_till : number) {
+
+    const messages = await prisma.messages.findMany({
+        where: {
+            sequenceNumber: {
+                gt: summarized_till
+            }
+        }
+    });
+
+    return messages.length;
+}
+
+
+async function getUnSummarizedMessages(conversationId: string) {
+
+    const conversation = await prisma.conversations.findFirst({
+        where: {
+            conversationId: conversationId
+        }
+    });
+
+    const messages = await prisma.messages.findMany({
+        where: {
+            sequenceNumber: {
+                gt: conversation?.summarized_till as number
+            }
+        }
+    })
+
+    return messages;
+}
+
+
+export { createMessage, getLastNMessages, getUnSummarizedMessages, countMessagesAfterSequence };

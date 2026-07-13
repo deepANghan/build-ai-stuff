@@ -34,5 +34,19 @@ async function getConversation(conversationId : string) {
     return conversation;
 }
 
+async function updateChatSummary(conversationId : string, newSummary : string, summarized_till : number) {
 
-export { createConversation, getConversation, getConversations };
+    await prisma.conversations.update({
+        where: {
+            conversationId: conversationId
+        },
+        data: {
+            summary: newSummary,
+            summarized_till: summarized_till
+        }
+    });
+
+}
+
+
+export { createConversation, getConversation, getConversations, updateChatSummary };

@@ -3,6 +3,7 @@ import { createConversation, getConversation, getConversations } from "../servic
 import { createMessage } from "../service/MessageService.js";
 import { callLLM } from "../service/LLMService.js";
 import { buildContext } from "../service/ContextBuilder.js";
+import { NeedSummarization, SummarizeChat } from "../service/Summarizer.js";
 
 
 async function PostChatController(request: Request, response : Response) {
@@ -46,6 +47,10 @@ async function PostMessageController(request: Request, response : Response, next
                 tokenCount: 0
             });
 
+            if(await NeedSummarization(conversationId as string)) {
+                await SummarizeChat(conversationId as string);
+            }
+
             const context = await buildContext(conversationId as string);
             
             const llmResponse = await callLLM(model, context, {
@@ -69,7 +74,7 @@ async function PostMessageController(request: Request, response : Response, next
                 },
                 model: llmResponse.model,
                 tokenCount: llmResponse.usage?.completionTokens as number
-            })
+            });
 
             return response.status(200).json({
                 success: true,
@@ -77,7 +82,7 @@ async function PostMessageController(request: Request, response : Response, next
                     aiMessage: {
                         role: aiMessage.role,
                         content: aiMessage.content
-                    }
+                    }   
                 }
             });
     }

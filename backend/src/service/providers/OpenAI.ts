@@ -3,6 +3,7 @@ import { openRouter } from "../../config/provider.js";
 import { SYSTEM_PROMPT } from "../../prompts/prompt.js";
 import type { ChatMessage } from "../MessageService.js";
 import { AppError } from "../../exception/AppError.js";
+import { CountTokens } from "../../util/TokenCounter.js";
 
 export async function OpenAIAPIcall(context: ChatMessage[], message: ChatMessage) {
 
@@ -17,6 +18,8 @@ export async function OpenAIAPIcall(context: ChatMessage[], message: ChatMessage
             content: message.content
         }
     ]
+
+    console.log(CountTokens(messages));
 
     try {
         const res = await openRouter.chat.send({

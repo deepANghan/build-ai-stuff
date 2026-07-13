@@ -13,9 +13,11 @@ datasource db {
 }
 
 model Conversations {
-  conversationId  String  @id
-  createdAt       DateTime
-  Messages        Messages[]
+  conversationId    String  @id
+  createdAt         DateTime
+  summary           String      @default("")
+  summarized_till   Int         @default(0)
+  Messages          Messages[]
 }
 
 model Messages {
@@ -24,6 +26,7 @@ model Messages {
   Conversation      Conversations  @relation(fields: [conversationId], references: [conversationId])
   role              String
   content           String
+  sequenceNumber    Int       @default(autoincrement())
   tokenCount        Int?
   model             String?
   createdAt         DateTime  @default(now())
