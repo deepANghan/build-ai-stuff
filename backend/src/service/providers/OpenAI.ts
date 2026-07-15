@@ -4,20 +4,44 @@ import { SYSTEM_PROMPT } from "../../prompts/prompt.js";
 import type { ChatMessage } from "../MessageService.js";
 import { AppError } from "../../exception/AppError.js";
 import { CountTokens } from "../../util/TokenCounter.js";
+import type { LLMContext } from "../LLMService.js";
 
-export async function OpenAIAPIcall(context: ChatMessage[], message: ChatMessage) {
+function buildMessages(
+    context: LLMContext,
+    message: ChatMessage
+) {
 
-    let messages = [
+    return [
         {
             role: "system",
-            content: SYSTEM_PROMPT
+            content: `
+${SYSTEM_PROMPT}
+
+
+Conversation summary:
+
+${context.summary ?? "None"}
+
+
+Relevant documents:
+
+${context.documents ?? "None"}
+`
         },
-        ...context,
+
+        ...context.history,
+
         {
-            role: "user",
-            content: message.content
+            role:"user",
+            content:message.content
         }
-    ]
+    ];
+}
+
+
+export async function OpenAIAPIcall(context: LLMContext, message: ChatMessage) {
+
+    const messages = buildMessages(context, message);
 
     console.log(CountTokens(messages));
 
