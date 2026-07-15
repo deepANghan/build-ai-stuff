@@ -2,9 +2,11 @@ import type { NextFunction, Request, Response } from "express";
 import { createConversation, getConversation, getConversations } from "../service/ConversationService.js";
 import { createMessage } from "../service/MessageService.js";
 import { callLLM } from "../service/LLMService.js";
-import { buildContext } from "../service/ContextBuilder.js";
+import { buildConversationContext, buildKnowledgeContext } from "../service/ContextBuilder.js";
 import { NeedSummarization, SummarizeChat } from "../service/Summarizer.js";
 import { getEncoding } from "js-tiktoken";
+import { getRelavantDocs } from "../service/QdrantService.js";
+import { doEmbeddings } from "../service/providers/EmbeddingModel.js";
 
 const enc = getEncoding("cl100k_base");
 
@@ -71,9 +73,14 @@ async function PostMessageController(request: Request, response : Response, next
                 await SummarizeChat(conversationId as string);
             }
 
-            const context = await buildContext(conversationId as string);
+            const conversationContext = await buildConversationContext(conversationId as string);
+
+            const knowledgeContext = await buildKnowledgeContext(userMessage.content);
             
-            const llmStream = await callLLM(model, context, {
+            const llmStream = await callLLM(model, {
+                summary: conversationContext.summary,
+                history: conversationContext.history,
+            }, {
                 role: "user",
                 content: message
             });
