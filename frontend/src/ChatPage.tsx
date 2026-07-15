@@ -34,6 +34,10 @@ export default function ChatPage() {
   const [models, setModels] = useState<Model[]>([]);
   const [selectedModel, setSelectedModel] = useState<string>("");
 
+  const [uploading, setUploading] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploadStatus, setUploadStatus] = useState("");
+
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -262,7 +266,56 @@ export default function ChatPage() {
     }
   }
 
+  async function uploadDocument() {
+    if (!selectedFile) return;
 
+    const formData = new FormData();
+
+    formData.append(
+      "document",
+      selectedFile
+    );
+
+    try {
+      setUploading(true);
+      setUploadStatus("Uploading...");
+
+      const res = await fetch("http://localhost:3000/api/v1/docs/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+
+      const json = await res.json();
+
+      if (!res.ok) {
+        throw new Error(
+          json.message || "Upload failed"
+        );
+      }
+
+
+      setUploadStatus(
+        "Document processed successfully ✅"
+      );
+
+      setSelectedFile(null);
+
+
+    } catch (err) {
+
+      console.log(err);
+
+      setUploadStatus(
+        "Upload failed ❌"
+      );
+
+    } finally {
+
+      setUploading(false);
+
+    }
+  }
 
   return (
     <div className="flex h-screen bg-gray-100">
@@ -280,7 +333,54 @@ export default function ChatPage() {
           >
             + New Chat
           </button>
+<div className="border-b p-4">
 
+  <h2 className="mb-3 font-semibold">
+    Knowledge Base
+  </h2>
+
+
+  <input
+    type="file"
+    name="document"
+    accept=".pdf,.txt"
+    onChange={(e) =>
+      setSelectedFile(
+        e.target.files?.[0] || null
+      )
+    }
+    className="mb-3 w-full text-sm"
+  />
+
+
+  <button
+    onClick={uploadDocument}
+    disabled={!selectedFile || uploading}
+    className="
+      w-full rounded-lg 
+      bg-green-600 
+      py-2 
+      text-white
+      disabled:opacity-50
+    "
+  >
+    {
+      uploading
+        ? "Processing..."
+        : "Upload Document"
+    }
+  </button>
+
+
+  {
+    uploadStatus && (
+      <p className="mt-2 text-sm text-gray-600">
+        {uploadStatus}
+      </p>
+    )
+  }
+
+</div>
         </div>
 
 
