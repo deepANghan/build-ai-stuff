@@ -67,9 +67,9 @@ async function PostMessageController(request: Request, response : Response, next
                 tokenCount: 0
             });
 
-            // if(await NeedSummarization(conversationId as string)) {
-            //     await SummarizeChat(conversationId as string);
-            // }
+            if(await NeedSummarization(conversationId as string)) {
+                await SummarizeChat(conversationId as string);
+            }
 
             const context = await buildContext(conversationId as string);
             
