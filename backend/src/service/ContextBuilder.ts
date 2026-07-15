@@ -1,7 +1,9 @@
 import { getConversation } from "./ConversationService.js";
 import { getLastNMessages } from "./MessageService.js";
+import { doEmbeddings } from "./providers/EmbeddingModel.js";
+import { getRelavantDocs } from "./QdrantService.js";
 
-async function buildContext(conversationId : string) {
+async function buildConversationContext(conversationId : string) {
 
     const conversation = await getConversation(conversationId);
 
@@ -21,7 +23,30 @@ async function buildContext(conversationId : string) {
         content: summary
     }
 
-    return [summaryMessage, ...lastMesssages];
+    return { summary: summary, history: lastMesssages };
 }
 
-export { buildContext };
+async function buildKnowledgeContext(
+    query: string
+) {
+    const [embedding] = await doEmbeddings([query]);
+
+    const docs = await getRelavantDocs(embedding?.embedding as number[]);
+
+    if (
+        docs.length === 0 ||
+        (docs.length > 0 && docs[0]!.score < 0.75)
+    ) {
+        return "";
+    }
+
+    return docs
+        .map((doc, i) => `
+Document ${i + 1}
+
+${doc.payload?.text}
+`)
+        .join("\n\n");
+}
+
+export { buildConversationContext, buildKnowledgeContext };

@@ -9,4 +9,15 @@ async function addDocs(points : any[]) {
 
 }
 
-export { addDocs };
+async function getRelavantDocs(embeddings : number[]) {
+
+    const docs = await qdrantClient.search(collectionName, {
+        vector: embeddings,
+        with_payload: true,
+        limit: 5
+    });
+
+    return docs;
+}   
+
+export { addDocs, getRelavantDocs };
