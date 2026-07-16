@@ -18,9 +18,9 @@ async function callLLM(model : string, context : LLMContext, message : ChatMessa
         
         const registeryModel = getModel(model);
 
-        // if(model == process.env.OPENAI_MODEL) {
-        //     streamResponse = await OpenAIAPIcall(context, message);
-        // }
+        if(model == process.env.OPENAI_MODEL) {
+            streamResponse = await OpenAIAPIcall(context, message);
+        }
 
         console.log(model, process.env.NVIDIA_MODE)
 

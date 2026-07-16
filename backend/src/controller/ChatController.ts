@@ -7,6 +7,7 @@ import { NeedSummarization, SummarizeChat } from "../service/Summarizer.js";
 import { getEncoding } from "js-tiktoken";
 import { getRelavantDocs } from "../service/QdrantService.js";
 import { doEmbeddings } from "../service/providers/EmbeddingModel.js";
+import { langfuse } from "../config/Langfuse.js";
 
 const enc = getEncoding("cl100k_base");
 
@@ -41,6 +42,15 @@ async function PostMessageController(request: Request, response : Response, next
 
         let headersSent = false;
 
+        const trace = langfuse.trace({
+            name: "chat-completion",
+            sessionId: conversationId as string,
+            input: {
+                message,
+                model
+            }
+        });
+
     try
     {
         response.writeHead(200, {
@@ -59,6 +69,7 @@ async function PostMessageController(request: Request, response : Response, next
                 isClientConnected = false;
             });
 
+
         const userMessage = await createMessage({
                 conversationId: conversationId as string,
                 message: {
@@ -73,12 +84,44 @@ async function PostMessageController(request: Request, response : Response, next
                 await SummarizeChat(conversationId as string);
             }
 
+            const conversationContextSpan = trace.span({
+                name: "build-conversation-context"
+            });
+
             const conversationContext = await buildConversationContext(conversationId as string);
+
+            conversationContextSpan.end({
+                output: {
+                    summary : conversationContext.summary,
+                    history: conversationContext.history
+                }
+            });
+
+            const knowledgeContextSpan = trace.span({
+                name: "build-knowledge-context",
+                input: {
+                    query: userMessage.content
+                }
+            });
 
             const knowledgeContext = await buildKnowledgeContext(userMessage.content);
             
+            knowledgeContextSpan.end({
+                output: knowledgeContext
+            });
+
+            const generation = trace.generation({
+                name: "LLM-generation",
+                model: model,
+                input: [{
+                    role: 'user',
+                    content: message
+                }]
+            });
+
             const llmStream = await callLLM(model, {
                 summary: conversationContext.summary,
+                documents: knowledgeContext,
                 history: conversationContext.history,
             }, {
                 role: "user",
@@ -107,6 +150,13 @@ async function PostMessageController(request: Request, response : Response, next
                 }
                 
             }
+
+            generation.end({
+                output: aiCombinedResponse,
+                usage: {
+                    output: outputTokenCount
+                }
+            });
 
             // console.log("stream finished");
 
@@ -144,11 +194,21 @@ async function PostMessageController(request: Request, response : Response, next
             //     }
             // });
 
+            await langfuse.flushAsync();
             return; 
     
         }
     catch(error : any) {
         console.log(error.message);
+
+        trace.update({
+            output: {
+                error: error.message
+            }
+        });
+
+        await langfuse.flushAsync();
+
 
         if(headersSent) {
             response.write(`data: ${JSON.stringify({ error: "Stream disconnected unexpectedly." })}\n\n`);

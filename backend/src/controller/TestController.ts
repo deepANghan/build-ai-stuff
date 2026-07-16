@@ -4,7 +4,7 @@ import { getRelavantDocs } from "../service/QdrantService.js";
 
 export async function GetTestController(request : Request, response : Response) {
 
-    const query = "Design patterns";
+    const query = "SOLID principles from my doc";
 
     const embeddings = await doEmbeddings([query]);
 

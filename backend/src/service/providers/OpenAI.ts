@@ -43,6 +43,8 @@ export async function OpenAIAPIcall(context: LLMContext, message: ChatMessage) {
 
     const messages = buildMessages(context, message);
 
+    console.log(context, "from Input Layer");
+
     console.log(CountTokens(messages));
 
     try {

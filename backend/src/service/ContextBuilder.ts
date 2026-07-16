@@ -33,9 +33,11 @@ async function buildKnowledgeContext(
 
     const docs = await getRelavantDocs(embedding?.embedding as number[]);
 
+    console.log(docs);
+
     if (
         docs.length === 0 ||
-        (docs.length > 0 && docs[0]!.score < 0.75)
+        (docs.length > 0 && docs[0]!.score < 0.40)
     ) {
         return "";
     }
